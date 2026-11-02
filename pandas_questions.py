@@ -49,7 +49,8 @@ def merge_referendum_and_areas(referendum, regions_and_departments):
     DOM-TOM-COM departments are departements that are remote from metropolitan
     France, like Guadaloupe, Reunion, or Tahiti.
     """
-    referendum["Department code"] = referendum["Department code"].astype(str).str.zfill(2)
+    referendum["Department code"] = referendum["Department code"]. \
+                    astype(str).str.zfill(2)
     newdf = pd.merge(referendum, regions_and_departments,left_on='Department code',
                      right_on="code_dep")
     newdf = newdf[~newdf["Department code"].str.contains("Z", na=False, regex=False)]
@@ -62,11 +63,13 @@ def compute_referendum_result_by_regions(referendum_and_areas):
     The return DataFrame should be indexed by `code_reg` and have columns:
     ['name_reg', 'Registered', 'Abstentions', 'Null', 'Choice A', 'Choice B']
     """
-    test=referendum_and_areas.groupby("name_reg", as_index=False).agg({'Registered':'sum',
-                                                                       'Abstentions':'sum',
-                                                                       'Null':'sum',
-                                                                       'Choice A': 'sum',
-                                                                       'Choice B': 'sum' })
+    test=referendum_and_areas.groupby("name_reg", \
+                                      as_index=False).\
+                                    agg({'Registered':'sum',\
+                                    'Abstentions':'sum',\
+                                    'Null':'sum',\
+                                    'Choice A': 'sum',\
+                                    'Choice B': 'sum' })
     return test
 
 
@@ -84,8 +87,9 @@ def plot_referendum_map(referendum_result_by_regions):
     merged_result_geopandas = gdf.merge( referendum_result_by_regions, left_on="nom",
                                         right_on="name_reg")
     mrg = merged_result_geopandas
-    merged_result_geopandas = merged_result_geopandas.assign(ratio=mrg["Choice A"]/
-                                                             (mrg["Choice A"]+mrg["Choice B"]))
+    merged_result_geopandas = merged_result_geopandas.\
+                            assign(ratio=mrg["Choice A"]/
+                            (mrg["Choice A"]+mrg["Choice B"]))
     merged_result_geopandas.plot("ratio")
     print(merged_result_geopandas)
     return merged_result_geopandas
