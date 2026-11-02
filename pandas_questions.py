@@ -15,11 +15,10 @@ import matplotlib.pyplot as plt
 
 def load_data():
     """Load data from the CSV files referundum/regions/departments."""
-    referendum = pd.DataFrame({})
-    regions = pd.DataFrame({})
-    departments = pd.DataFrame({})
-
-    return referendum, regions, departments
+    _referendum = pd.read_csv("data/referendum.csv", sep=';')
+    _regions = pd.read_csv("data/regions.csv", sep=',')
+    _departments = pd.read_csv("data/departments.csv", sep=',')
+    return _referendum, _regions, _departments
 
 
 def merge_regions_and_departments(regions, departments):
@@ -28,8 +27,17 @@ def merge_regions_and_departments(regions, departments):
     The columns in the final DataFrame should be:
     ['code_reg', 'name_reg', 'code_dep', 'name_dep']
     """
-
-    return pd.DataFrame({})
+    cols=['code_reg', 'name_reg', 'code_dep', 'name_dep']
+    newdf = pd.merge(regions, departments,left_on="code",
+    right_on="region_code", how="inner")
+    newdf=newdf.rename(
+        columns={
+            "name_x":"name_reg",
+            "code_x":"code_reg",
+            "code_y":"code_dep",
+            "name_y":"name_dep"})
+    print(newdf.columns)
+    return newdf[cols]
 
 
 def merge_referendum_and_areas(referendum, regions_and_departments):
@@ -41,8 +49,11 @@ def merge_referendum_and_areas(referendum, regions_and_departments):
     DOM-TOM-COM departments are departements that are remote from metropolitan
     France, like Guadaloupe, Reunion, or Tahiti.
     """
-
-    return pd.DataFrame({})
+    referendum["Department code"] = referendum["Department code"].astype(str).str.zfill(2)
+    newdf = pd.merge(referendum, regions_and_departments,left_on='Department code',
+                     right_on="code_dep")
+    newdf = newdf[~newdf["Department code"].str.contains("Z", na=False, regex=False)]
+    return newdf
 
 
 def compute_referendum_result_by_regions(referendum_and_areas):
@@ -51,8 +62,12 @@ def compute_referendum_result_by_regions(referendum_and_areas):
     The return DataFrame should be indexed by `code_reg` and have columns:
     ['name_reg', 'Registered', 'Abstentions', 'Null', 'Choice A', 'Choice B']
     """
-
-    return pd.DataFrame({})
+    test=referendum_and_areas.groupby("name_reg", as_index=False).agg({'Registered':'sum',
+                                                                       'Abstentions':'sum',
+                                                                       'Null':'sum',
+                                                                       'Choice A': 'sum',
+                                                                       'Choice B': 'sum' })
+    return test
 
 
 def plot_referendum_map(referendum_result_by_regions):
@@ -64,21 +79,28 @@ def plot_referendum_map(referendum_result_by_regions):
       should display the rate of 'Choice A' over all expressed ballots.
     * Return a gpd.GeoDataFrame with a column 'ratio' containing the results.
     """
-
-    return gpd.GeoDataFrame({})
+    path ='data/regions.geojson'
+    gdf = gpd.read_file(path)
+    merged_result_geopandas = gdf.merge( referendum_result_by_regions, left_on="nom",
+                                        right_on="name_reg")
+    mrg = merged_result_geopandas
+    merged_result_geopandas = merged_result_geopandas.assign(ratio=mrg["Choice A"]/
+                                                             (mrg["Choice A"]+mrg["Choice B"]))
+    merged_result_geopandas.plot("ratio")
+    print(merged_result_geopandas)
+    return merged_result_geopandas
 
 
 if __name__ == "__main__":
-
-    referendum, df_reg, df_dep = load_data()
-    regions_and_departments = merge_regions_and_departments(
+    _referendum, df_reg, df_dep = load_data()
+    _regions_and_departments = merge_regions_and_departments(
         df_reg, df_dep
     )
-    referendum_and_areas = merge_referendum_and_areas(
-        referendum, regions_and_departments
+    _referendum_and_areas = merge_referendum_and_areas(
+        _referendum, _regions_and_departments
     )
     referendum_results = compute_referendum_result_by_regions(
-        referendum_and_areas
+        _referendum_and_areas
     )
     print(referendum_results)
 
