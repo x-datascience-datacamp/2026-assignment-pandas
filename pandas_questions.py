@@ -8,7 +8,6 @@ https://github.com/x-datascience-datacamp/datacamp-assignment-pandas/blob/main/e
 To do that, you will load the data as pandas.DataFrame, merge the info and
 aggregate them by regions and finally plot them on a map using `geopandas`.
 """
-from unittest import result
 
 import pandas as pd
 import geopandas as gpd
@@ -30,7 +29,13 @@ def merge_regions_and_departments(regions, departments):
     The columns in the final DataFrame should be:
     ['code_reg', 'name_reg', 'code_dep', 'name_dep']
     """
-    merged_df = pd.merge(regions, departments, left_on="code", right_on="region_code", suffixes=("_reg", "_dep"))
+    merged_df = pd.merge(
+        regions,
+        departments,
+        left_on="code",
+        right_on="region_code",
+        suffixes=("_reg", "_dep"),
+    )
     merged_dff = merged_df[["code_reg", "name_reg", "code_dep", "name_dep"]]
 
     return merged_dff
@@ -45,10 +50,15 @@ def merge_referendum_and_areas(referendum, regions_and_departments):
     DOM-TOM-COM departments are departements that are remote from metropolitan
     France, like Guadaloupe, Reunion, or Tahiti.
     """
-    mask = referendum["Department code"].str.contains("Z")   
+    mask = referendum["Department code"].str.contains("Z")
     referendum = referendum[~mask].copy()
     referendum["Department code"] = referendum["Department code"].str.zfill(2)
-    merged_df = pd.merge(referendum, regions_and_departments, left_on="Department code", right_on="code_dep", suffixes=("_ref", "_dep"))
+    merged_df = pd.merge(
+        referendum,
+        regions_and_departments,
+        left_on="Department code",
+        right_on="code_dep",
+        suffixes=("_ref", "_dep"))
 
     return merged_df
 
@@ -63,7 +73,7 @@ def compute_referendum_result_by_regions(referendum_and_areas):
     cols = ["Registered", "Abstentions", "Null", "Choice A", "Choice B"]
     result = (
         referendum_and_areas
-        .groupby(["code_reg", "name_reg"])[cols] 
+        .groupby(["code_reg", "name_reg"])[cols]
         .sum()
         .reset_index(level = "name_reg")
     )
