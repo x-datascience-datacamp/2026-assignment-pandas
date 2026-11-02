@@ -53,20 +53,17 @@ def merge_referendum_and_areas(referendum, regions_and_departments):
 
     You can drop the lines relative to DOM-TOM-COM departments, and the
     french living abroad, which all have a code that contains `Z`.
-
-    DOM-TOM-COM departments are departements that are remote from metropolitan
-    France, like Guadaloupe, Reunion, or Tahiti.
     """
+    ref = referendum.copy()
+    ref["Department code"] = ref["Department code"].astype(str).str.zfill(2)
+    ref = ref[~ref["Department code"].str.contains("Z", na=False)]
+
     df = pd.merge(
-        referendum,
+        ref,
         regions_and_departments,
         left_on="Department code",
         right_on="code_dep"
     )
-    df = df[
-        df["code_dep"].str.isnumeric()&(df["code_dep"].astype("string").str.isnumeric())
-    ]
-    df = df.drop(df[df["Department code"].str.contains("Z")].index)
 
     return df
 
@@ -77,27 +74,14 @@ def compute_referendum_result_by_regions(referendum_and_areas):
     The return DataFrame should be indexed by `code_reg` and have columns:
     ['name_reg', 'Registered', 'Abstentions', 'Null', 'Choice A', 'Choice B']
     """
-    df = referendum_and_areas
-    df.drop(columns=['code_dep'], inplace=True)
-    df.drop(columns=['name_dep'], inplace=True)
-    df.drop(columns=['Department code'], inplace=True)
-    df.drop(columns=['Department name'], inplace=True)
-    df.drop(columns=['Town code'], inplace=True)
-    df.drop(columns=['Town name'], inplace=True)
-
-    df = df.groupby("code_reg").agg({
+    return referendum_and_areas.groupby("code_reg").agg({
         "name_reg": "first",
         "Registered": "sum",
-        "Abstentions":"sum",
+        "Abstentions": "sum",
         "Null": "sum",
         "Choice A": "sum",
         "Choice B": "sum"
-        }
-    )
-
-
-
-    return df
+    })
 
 
 def plot_referendum_map(referendum_result_by_regions):
