@@ -8,6 +8,7 @@ https://github.com/x-datascience-datacamp/datacamp-assignment-pandas/blob/main/e
 To do that, you will load the data as pandas.DataFrame, merge the info and
 aggregate them by regions and finally plot them on a map using `geopandas`.
 """
+
 import pandas as pd
 import geopandas as gpd
 import matplotlib.pyplot as plt
@@ -15,9 +16,9 @@ import matplotlib.pyplot as plt
 
 def load_data():
     """Load data from the CSV files referundum/regions/departments."""
-    referendum = pd.DataFrame({})
-    regions = pd.DataFrame({})
-    departments = pd.DataFrame({})
+    referendum = pd.read_csv("./data/referendum.csv", sep=";")
+    regions = pd.read_csv("./data/regions.csv")
+    departments = pd.read_csv("./data/departments.csv")
 
     return referendum, regions, departments
 
@@ -28,8 +29,15 @@ def merge_regions_and_departments(regions, departments):
     The columns in the final DataFrame should be:
     ['code_reg', 'name_reg', 'code_dep', 'name_dep']
     """
-
-    return pd.DataFrame({})
+    df = pd.merge(
+        regions,
+        departments,
+        left_on="code",
+        right_on="region_code",
+        how="inner",
+        suffixes=("_reg", "_dep"),
+    )
+    return df[["code_reg", "name_reg", "code_dep", "name_dep"]]
 
 
 def merge_referendum_and_areas(referendum, regions_and_departments):
@@ -41,8 +49,19 @@ def merge_referendum_and_areas(referendum, regions_and_departments):
     DOM-TOM-COM departments are departements that are remote from metropolitan
     France, like Guadaloupe, Reunion, or Tahiti.
     """
+    referendum = referendum[
+        ~referendum["Department code"].astype(str).str.contains("Z")
+    ].copy()
 
-    return pd.DataFrame({})
+    referendum["Department code"] = referendum["Department code"].str.zfill(2)
+
+    return pd.merge(
+        referendum,
+        regions_and_departments,
+        left_on="Department code",
+        right_on="code_dep",
+        how="inner",
+    )
 
 
 def compute_referendum_result_by_regions(referendum_and_areas):
@@ -52,7 +71,19 @@ def compute_referendum_result_by_regions(referendum_and_areas):
     ['name_reg', 'Registered', 'Abstentions', 'Null', 'Choice A', 'Choice B']
     """
 
-    return pd.DataFrame({})
+    columns_to_sum = [
+        "Registered",
+        "Abstentions",
+        "Null",
+        "Choice A",
+        "Choice B",
+    ]
+
+    return (
+        referendum_and_areas.groupby(["code_reg", "name_reg"])[columns_to_sum]
+        .sum()
+        .reset_index(level="name_reg")
+    )
 
 
 def plot_referendum_map(referendum_result_by_regions):
@@ -65,21 +96,40 @@ def plot_referendum_map(referendum_result_by_regions):
     * Return a gpd.GeoDataFrame with a column 'ratio' containing the results.
     """
 
-    return gpd.GeoDataFrame({})
+    regions_map = gpd.read_file("./data/regions.geojson")
+
+    referendum_results = referendum_result_by_regions.reset_index()
+
+    regions_map["code"] = regions_map["code"].astype(str)
+    referendum_results["code_reg"] = referendum_results["code_reg"].astype(str)
+
+    gdf_referendum = regions_map.merge(
+        referendum_results,
+        left_on="code",
+        right_on="code_reg",
+        how="inner",
+    )
+
+    gdf_referendum["ratio"] = gdf_referendum["Choice A"] / (
+        gdf_referendum["Choice A"] + gdf_referendum["Choice B"]
+    )
+
+    gdf_referendum.plot(
+        column="ratio",
+        legend=True,
+        cmap="RdYlBu",
+    )
+
+    return gdf_referendum
 
 
 if __name__ == "__main__":
-
     referendum, df_reg, df_dep = load_data()
-    regions_and_departments = merge_regions_and_departments(
-        df_reg, df_dep
-    )
+    regions_and_departments = merge_regions_and_departments(df_reg, df_dep)
     referendum_and_areas = merge_referendum_and_areas(
         referendum, regions_and_departments
     )
-    referendum_results = compute_referendum_result_by_regions(
-        referendum_and_areas
-    )
+    referendum_results = compute_referendum_result_by_regions(referendum_and_areas)
     print(referendum_results)
 
     plot_referendum_map(referendum_results)
