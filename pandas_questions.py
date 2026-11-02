@@ -50,7 +50,8 @@ def merge_referendum_and_areas(referendum, regions_and_departments):
     France, like Guadaloupe, Reunion, or Tahiti.
     """
     referendum = referendum[~referendum["Department code"].str.contains("Z")]
-    # Department codes are '1', '2' in the referendum but '01', '02' in the departments table.
+    # Department codes are '1', '2' in the referendum but '01', '02' in the
+    # departments table.
     referendum = referendum.assign(
         code_dep=referendum["Department code"].str.zfill(2)
     )
