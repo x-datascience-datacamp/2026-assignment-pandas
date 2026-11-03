@@ -32,7 +32,7 @@ def merge_regions_and_departments(regions, departments):
     departments = departments[["region_code", "code", "name"]].rename(
         columns={"region_code": "code_reg", "code": "code_dep", "name": "name_dep"}
     )
-    
+
     regions = regions[["code", "name"]].rename(
         columns={"code": "code_reg", "name": "name_reg"}
     )
