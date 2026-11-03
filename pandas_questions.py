@@ -15,9 +15,11 @@ import matplotlib.pyplot as plt
 
 def load_data():
     """Load data from the CSV files referundum/regions/departments."""
-    referendum = pd.read_csv("data/referendum.csv", sep=";", dtype={"Department code": str})
+    referendum = pd.read_csv(
+        "data/referendum.csv", sep=";", dtype={"Department code": str})
     regions = pd.read_csv("data/regions.csv", dtype={"code": str})
-    departments = pd.read_csv("data/departments.csv", dtype={"code": str, "region_code": str})
+    departments = pd.read_csv(
+        "data/departments.csv", dtype={"code": str, "region_code": str})
 
     return referendum, regions, departments
 
@@ -28,7 +30,9 @@ def merge_regions_and_departments(regions, departments):
     The columns in the final DataFrame should be:
     ['code_reg', 'name_reg', 'code_dep', 'name_dep']
     """
-    merged = pd.merge( departments, regions, left_on="region_code", right_on="code", suffixes=("_dep", "_reg") )
+    merged = pd.merge( departments, regions,
+                        left_on="region_code", right_on="code",
+                        suffixes=("_dep", "_reg"))
 
     return merged[["code_reg", "name_reg", "code_dep", "name_dep"]]
 
@@ -45,7 +49,8 @@ def merge_referendum_and_areas(referendum, regions_and_departments):
     referendum = referendum[~referendum["Department code"].str.contains("Z")].copy()
     referendum["Department code"] = referendum["Department code"].str.zfill(2)
 
-    merged = pd.merge(referendum, regions_and_departments, left_on="Department code", right_on="code_dep")
+    merged = pd.merge(referendum, regions_and_departments,
+                        left_on="Department code", right_on="code_dep")
 
     return merged.dropna()
 
@@ -79,7 +84,8 @@ def plot_referendum_map(referendum_result_by_regions):
     results = referendum_result_by_regions.reset_index()
     gdf = regions_map.merge(results, on="code_reg")
     gdf["ratio"] = gdf["Choice A"] / (gdf["Choice A"] + gdf["Choice B"])
-    gdf.plot(column="ratio", cmap="coolwarm", legend=True, edgecolor="black", figsize=(10, 8))
+    gdf.plot(column="ratio", cmap="coolwarm",
+                legend=True, edgecolor="black", figsize=(10, 8))
 
     plt.title("Referendum Results by Region")
     plt.axis("off")
