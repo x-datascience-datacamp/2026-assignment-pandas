@@ -28,7 +28,11 @@ def merge_regions_and_departments(regions, departments):
     The columns in the final DataFrame should be:
     ['code_reg', 'name_reg', 'code_dep', 'name_dep']
     """
-    new = regions.merge(departments, left_on="code", right_on="region_code",suffixes=("_reg", "_dep"))
+    new = regions.merge(
+        departments, left_on="code", right_on="region_code",suffixes=(
+            "_reg", "_dep"
+        )
+    )
     return new[['code_reg', 'name_reg', 'code_dep', 'name_dep']]
 
 
@@ -43,7 +47,9 @@ def merge_referendum_and_areas(referendum, regions_and_departments):
     """
     wo_Z = referendum[~referendum['Department code'].str.contains('Z', na=False)].copy()
     wo_Z['Department code'] = wo_Z['Department code'].str.zfill(2)
-    new = wo_Z.merge(regions_and_departments, left_on="Department code", right_on="code_dep")
+    new = wo_Z.merge(
+        regions_and_departments, left_on="Department code", right_on="code_dep"
+    )
     return new
 
 
@@ -53,7 +59,6 @@ def compute_referendum_result_by_regions(referendum_and_areas):
     The return DataFrame should be indexed by `code_reg` and have columns:
     ['name_reg', 'Registered', 'Abstentions', 'Null', 'Choice A', 'Choice B']
     """
-    x = referendum_and_areas.copy()
     colonnes_votes = ['Registered', 'Abstentions', 'Null', 'Choice A', 'Choice B']
     totaux = referendum_and_areas.groupby('code_reg')[colonnes_votes].sum()
     noms = referendum_and_areas[['code_reg', 'name_reg']].drop_duplicates()
