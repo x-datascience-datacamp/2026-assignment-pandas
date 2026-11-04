@@ -58,9 +58,9 @@ def compute_referendum_result_by_regions(referendum_and_areas):
     ['name_reg', 'Registered', 'Abstentions', 'Null', 'Choice A', 'Choice B']
     """
     cols = ['Registered', 'Abstentions', 'Null', 'Choice A', 'Choice B']
-    final_df = (referendum_and_areas.groupby(["code_reg","name_reg"])[cols].sum().reset_index().set_index("code_reg"))
-    final_df = final_df[["name_reg"] + cols]
-    return final_df
+    result_df = (referendum_and_areas.groupby(["code_reg","name_reg"])[cols].sum().reset_index().set_index("code_reg"))
+    result_df = result_df[["name_reg"] + cols]
+    return result_df
 
 
 def plot_referendum_map(referendum_result_by_regions):
