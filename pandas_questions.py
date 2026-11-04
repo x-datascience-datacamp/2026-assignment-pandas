@@ -29,7 +29,9 @@ def merge_regions_and_departments(regions, departments):
     ['code_reg', 'name_reg', 'code_dep', 'name_dep']
     """
     regions = regions.rename(columns={"code": "code_reg", "name":"name_reg"})
-    departments = departments.rename(columns={"code":"code_dep","region_code":"code_reg","name":"name_dep"})
+    departments = departments.rename(columns={"code":"code_dep",
+                                              "region_code":"code_reg",
+                                              "name":"name_dep"})
     final_df = pd.merge(regions,departments,on='code_reg')
     final_df = final_df[["code_reg","name_reg","code_dep","name_dep"]]
 
@@ -58,7 +60,9 @@ def compute_referendum_result_by_regions(referendum_and_areas):
     ['name_reg', 'Registered', 'Abstentions', 'Null', 'Choice A', 'Choice B']
     """
     cols = ['Registered', 'Abstentions', 'Null', 'Choice A', 'Choice B']
-    result_df = (referendum_and_areas.groupby(["code_reg","name_reg"])[cols].sum().reset_index().set_index("code_reg"))
+    result_df = (referendum_and_areas.groupby(
+        ["code_reg","name_reg"]
+        )[cols].sum().reset_index().set_index("code_reg"))
     result_df = result_df[["name_reg"] + cols]
     return result_df
 
@@ -73,7 +77,8 @@ def plot_referendum_map(referendum_result_by_regions):
     * Return a gpd.GeoDataFrame with a column 'ratio' containing the results.
     """
     geo = gpd.read_file("data/regions.geojson")
-    gdf = geo.merge(referendum_result_by_regions.reset_index(),left_on="code", right_on="code_reg")
+    gdf = geo.merge(referendum_result_by_regions.reset_index(),
+                    left_on="code", right_on="code_reg")
     gdf["ratio"] = gdf["Choice A"] / (gdf["Choice A"] + gdf["Choice B"])
     gdf.plot(column="ratio", legend=True, cmap="RdBu")
     plt.title("Rate of Choice A over expressed ballots")
