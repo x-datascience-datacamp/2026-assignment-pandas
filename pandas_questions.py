@@ -8,16 +8,16 @@ https://github.com/x-datascience-datacamp/datacamp-assignment-pandas/blob/main/e
 To do that, you will load the data as pandas.DataFrame, merge the info and
 aggregate them by regions and finally plot them on a map using `geopandas`.
 """
-import pandas as pd
 import geopandas as gpd
 import matplotlib.pyplot as plt
+import pandas as pd
 
 
 def load_data():
-    """Load data from the CSV files referundum/regions/departments."""
-    referendum = pd.DataFrame({})
-    regions = pd.DataFrame({})
-    departments = pd.DataFrame({})
+    """Load data from the CSV files in data/."""
+    regions = pd.read_csv("data/regions.csv")
+    departments = pd.read_csv("data/departments.csv")
+    referendum = pd.read_csv("data/referendum.csv", sep=";")
 
     return referendum, regions, departments
 
@@ -28,8 +28,25 @@ def merge_regions_and_departments(regions, departments):
     The columns in the final DataFrame should be:
     ['code_reg', 'name_reg', 'code_dep', 'name_dep']
     """
+    dept_renamed = departments.rename(
+        columns={"code": "code_dep", "name": "name_dep"}
+    )
+    reg_renamed = regions.rename(
+        columns={"code": "code_reg", "name": "name_reg"}
+    )
 
-    return pd.DataFrame({})
+    dept_renamed["code_dep"] = dept_renamed["code_dep"].astype(str).str.zfill(2)
+    reg_renamed["code_reg"] = reg_renamed["code_reg"].astype(str)
+    dept_renamed["region_code"] = dept_renamed["region_code"].astype(str)
+
+    merged = pd.merge(
+        dept_renamed,
+        reg_renamed,
+        left_on="region_code",
+        right_on="code_reg",
+        how="inner",
+    )
+    return merged[["code_reg", "name_reg", "code_dep", "name_dep"]]
 
 
 def merge_referendum_and_areas(referendum, regions_and_departments):
@@ -37,12 +54,28 @@ def merge_referendum_and_areas(referendum, regions_and_departments):
 
     You can drop the lines relative to DOM-TOM-COM departments, and the
     french living abroad, which all have a code that contains `Z`.
-
-    DOM-TOM-COM departments are departements that are remote from metropolitan
-    France, like Guadaloupe, Reunion, or Tahiti.
     """
+    clean_ref = referendum[
+        ~referendum["Department code"]
+        .astype(str)
+        .str.contains("Z", na=False)
+    ].copy()
 
-    return pd.DataFrame({})
+    clean_ref["Department code"] = (
+        clean_ref["Department code"].astype(str).str.zfill(2)
+    )
+    regions_and_departments = regions_and_departments.copy()
+    regions_and_departments["code_dep"] = (
+        regions_and_departments["code_dep"].astype(str).str.zfill(2)
+    )
+
+    return pd.merge(
+        clean_ref,
+        regions_and_departments,
+        left_on="Department code",
+        right_on="code_dep",
+        how="inner",
+    )
 
 
 def compute_referendum_result_by_regions(referendum_and_areas):
@@ -51,25 +84,52 @@ def compute_referendum_result_by_regions(referendum_and_areas):
     The return DataFrame should be indexed by `code_reg` and have columns:
     ['name_reg', 'Registered', 'Abstentions', 'Null', 'Choice A', 'Choice B']
     """
-
-    return pd.DataFrame({})
+    cols = ["Registered", "Abstentions", "Null", "Choice A", "Choice B"]
+    agg_df = (
+        referendum_and_areas
+        .groupby(["code_reg", "name_reg"])[cols]
+        .sum()
+        .reset_index()
+        .set_index("code_reg")
+    )
+    return agg_df[["name_reg"] + cols]
 
 
 def plot_referendum_map(referendum_result_by_regions):
     """Plot a map with the results from the referendum.
 
-    * Load the geographic data with geopandas from `regions.geojson`.
+    * Load the geographic data with geopandas from `data/regions.geojson`.
     * Merge these info into `referendum_result_by_regions`.
-    * Use the method `GeoDataFrame.plot` to display the result map. The results
-      should display the rate of 'Choice A' over all expressed ballots.
-    * Return a gpd.GeoDataFrame with a column 'ratio' containing the results.
+    * Use the method `GeoDataFrame.plot` to display the result map.
+    * Return a gpd.GeoDataFrame with a column 'ratio' containing results.
     """
+    geo_df = gpd.read_file("data/regions.geojson")
+    geo_df["code"] = geo_df["code"].astype(str)
 
-    return gpd.GeoDataFrame({})
+    res_df = referendum_result_by_regions.reset_index()
+    res_df["code_reg"] = res_df["code_reg"].astype(str)
+
+    merged_geo = geo_df.merge(
+        res_df,
+        left_on="code",
+        right_on="code_reg",
+        how="inner",
+    )
+
+    choice_a = merged_geo["Choice A"]
+    choice_b = merged_geo["Choice B"]
+    merged_geo["ratio"] = choice_a / (choice_a + choice_b)
+
+    merged_geo.plot(
+        column="ratio",
+        cmap="coolwarm",
+        legend=True,
+        edgecolor="black",
+    )
+    return merged_geo
 
 
 if __name__ == "__main__":
-
     referendum, df_reg, df_dep = load_data()
     regions_and_departments = merge_regions_and_departments(
         df_reg, df_dep
