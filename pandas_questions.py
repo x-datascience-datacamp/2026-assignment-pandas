@@ -15,9 +15,13 @@ import matplotlib.pyplot as plt
 
 def load_data():
     """Load data from the CSV files referundum/regions/departments."""
-    referendum = pd.DataFrame({})
-    regions = pd.DataFrame({})
-    departments = pd.DataFrame({})
+    referendum = pd.read_csv("data/referendum.csv",
+                              sep=";",
+                              dtype={"Department code": str},
+                              )
+    regions = pd.read_csv("data/regions.csv")
+    departments = pd.read_csv("data/departments.csv")
+    referendum["Department code"] = referendum["Department code"].str.zfill(2)
 
     return referendum, regions, departments
 
@@ -28,8 +32,20 @@ def merge_regions_and_departments(regions, departments):
     The columns in the final DataFrame should be:
     ['code_reg', 'name_reg', 'code_dep', 'name_dep']
     """
-
-    return pd.DataFrame({})
+    merged = pd.merge(
+        departments[["code", "name", "region_code"]].rename(columns={
+            "code": "code_dep",
+            "name": "name_dep",
+            "region_code": "code_reg"
+        }),
+        regions[["code", "name"]].rename(columns={
+            "code": "code_reg",
+            "name": "name_reg"
+        }),
+        on="code_reg",
+        how="left",
+    )
+    return merged
 
 
 def merge_referendum_and_areas(referendum, regions_and_departments):
@@ -41,9 +57,20 @@ def merge_referendum_and_areas(referendum, regions_and_departments):
     DOM-TOM-COM departments are departements that are remote from metropolitan
     France, like Guadaloupe, Reunion, or Tahiti.
     """
+    referendum = referendum.copy()
+    referendum["code_dep"] = referendum["Department code"]
+    ref_areas = pd.merge(
+        referendum,
+        regions_and_departments,
+        on="code_dep",
+        how="left",
+    )
 
-    return pd.DataFrame({})
-
+    ref_areas = ref_areas[
+        ~ref_areas["code_dep"].str.contains("Z")
+    ]
+    ref_areas = ref_areas.dropna()
+    return ref_areas
 
 def compute_referendum_result_by_regions(referendum_and_areas):
     """Return a table with the absolute count for each region.
@@ -51,8 +78,24 @@ def compute_referendum_result_by_regions(referendum_and_areas):
     The return DataFrame should be indexed by `code_reg` and have columns:
     ['name_reg', 'Registered', 'Abstentions', 'Null', 'Choice A', 'Choice B']
     """
-
-    return pd.DataFrame({})
+    results = (
+        referendum_and_areas.groupby(["code_reg", "name_reg"])
+        .agg(
+            Registered=("Registered", "sum"),
+            Abstentions=("Abstentions", "sum"),
+            Null=("Null", "sum"),
+            Choice_A=("Choice A", "sum"),
+            Choice_B=("Choice B", "sum")
+        )
+        .reset_index()
+        .set_index("code_reg")
+        .sort_index()
+    )
+    results = results.rename(columns={
+        "Choice_A": "Choice A",
+        "Choice_B": "Choice B",
+    })
+    return results
 
 
 def plot_referendum_map(referendum_result_by_regions):
@@ -65,7 +108,28 @@ def plot_referendum_map(referendum_result_by_regions):
     * Return a gpd.GeoDataFrame with a column 'ratio' containing the results.
     """
 
-    return gpd.GeoDataFrame({})
+    geo_data = gpd.read_file("data/regions.geojson")
+    geo_results = geo_data.merge(
+        referendum_result_by_regions,
+        left_on="code",
+        right_on="code_reg",
+        how="left",
+    )
+    expressed_votes = geo_results["Choice A"] + geo_results["Choice B"]
+    geo_results["ratio"] = (
+        geo_results["Choice A"] / expressed_votes.where(expressed_votes != 0)
+    )
+    geo_results.plot(
+        column="ratio",
+        cmap="Blues",
+        legend=True,
+        edgecolor="black",
+        figsize=(12, 10),
+    )
+    plt.title("Choice A for expressed ballots")
+    plt.axis("off")
+    plt.show()
+    return geo_results
 
 
 if __name__ == "__main__":
@@ -82,5 +146,5 @@ if __name__ == "__main__":
     )
     print(referendum_results)
 
-    plot_referendum_map(referendum_results)
-    plt.show()
+    referendum_map = plot_referendum_map(referendum_results)
+
