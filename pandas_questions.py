@@ -15,12 +15,11 @@ import matplotlib.pyplot as plt
 
 def load_data():
     """Load data from the CSV files referundum/regions/departments."""
-    referendum = pd.DataFrame({})
-    regions = pd.DataFrame({})
-    departments = pd.DataFrame({})
+    referendum = pd.read_csv('data/referendum.csv', sep=';')
+    regions = pd.read_csv('data/regions.csv')
+    departments = pd.read_csv('data/departments.csv')
 
     return referendum, regions, departments
-
 
 def merge_regions_and_departments(regions, departments):
     """Merge regions and departments in one DataFrame.
@@ -28,8 +27,27 @@ def merge_regions_and_departments(regions, departments):
     The columns in the final DataFrame should be:
     ['code_reg', 'name_reg', 'code_dep', 'name_dep']
     """
+    merged = pd.merge(
+        departments,
+        regions,
+        left_on='region_code',
+        right_on='code',
+        suffixes=('_dep', '_reg'),
+    )
 
-    return pd.DataFrame({})
+    # In departments.csv and regions.csv, columns are named 'code' and 'name'
+    merged = merged.rename(
+        columns={
+            'code_reg': 'code_reg',
+            'name_reg': 'name_reg',
+            'code_dep': 'code_dep',
+            'name_dep': 'name_dep',
+            'code': 'code_dep',
+            'name': 'name_dep',
+        }
+    )
+
+    return merged[['code_reg', 'name_reg', 'code_dep', 'name_dep']]
 
 
 def merge_referendum_and_areas(referendum, regions_and_departments):
@@ -41,9 +59,28 @@ def merge_referendum_and_areas(referendum, regions_and_departments):
     DOM-TOM-COM departments are departements that are remote from metropolitan
     France, like Guadaloupe, Reunion, or Tahiti.
     """
+    ref = referendum.copy()
 
-    return pd.DataFrame({})
+    # Normalisation du code de département : élimination des 'Z' et padding
+    ref = ref[~ref['Department code'].astype(str).str.contains('Z')]
+    ref['Department code'] = (
+        ref['Department code'].astype(str).str.zfill(2)
+    )
 
+    regions_deps = regions_and_departments.copy()
+    regions_deps['code_dep'] = (
+        regions_deps['code_dep'].astype(str).str.zfill(2)
+    )
+
+    merged = pd.merge(
+        ref,
+        regions_deps,
+        left_on='Department code',
+        right_on='code_dep',
+        how='inner',
+    )
+
+    return merged.dropna()
 
 def compute_referendum_result_by_regions(referendum_and_areas):
     """Return a table with the absolute count for each region.
@@ -51,8 +88,15 @@ def compute_referendum_result_by_regions(referendum_and_areas):
     The return DataFrame should be indexed by `code_reg` and have columns:
     ['name_reg', 'Registered', 'Abstentions', 'Null', 'Choice A', 'Choice B']
     """
+    grouped = referendum_and_areas.groupby(
+        ['code_reg', 'name_reg'], as_index=False
+    )[['Registered', 'Abstentions', 'Null', 'Choice A', 'Choice B']].sum()
 
-    return pd.DataFrame({})
+    grouped = grouped.set_index('code_reg')
+
+    return grouped[
+        ['name_reg', 'Registered', 'Abstentions', 'Null', 'Choice A', 'Choice B']
+    ]
 
 
 def plot_referendum_map(referendum_result_by_regions):
@@ -64,12 +108,28 @@ def plot_referendum_map(referendum_result_by_regions):
       should display the rate of 'Choice A' over all expressed ballots.
     * Return a gpd.GeoDataFrame with a column 'ratio' containing the results.
     """
+    geo_regions = gpd.read_file('data/regions.geojson')
 
-    return gpd.GeoDataFrame({})
+    gdf = geo_regions.merge(
+        referendum_result_by_regions,
+        left_on='code',
+        right_index=True,
+    )
+
+    # Calcul du ratio : Choice A / suffrages exprimés (Choice A + Choice B)
+    gdf['ratio'] = gdf['Choice A'] / (gdf['Choice A'] + gdf['Choice B'])
+
+    gdf.plot(
+        column='ratio',
+        legend=True,
+        cmap='coolwarm',
+        missing_kwds={'color': 'lightgrey'},
+    )
+
+    return gdf
 
 
 if __name__ == "__main__":
-
     referendum, df_reg, df_dep = load_data()
     regions_and_departments = merge_regions_and_departments(
         df_reg, df_dep
@@ -84,3 +144,5 @@ if __name__ == "__main__":
 
     plot_referendum_map(referendum_results)
     plt.show()
+
+
